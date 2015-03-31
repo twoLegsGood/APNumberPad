@@ -42,7 +42,8 @@ static inline UIColor * APNP_RGBa(int r, int g, int b, CGFloat alpha) {
 }
 
 + (UIColor *)numberButtonBackgroundColor {
-    return APNP_RGBa(252, 252, 252, 1.f);
+//    return APNP_RGBa(252, 252, 252, 1.f);
+    return [UIColor colorWithWhite:.97 alpha:1.0];
 }
 
 + (UIColor *)numberButtonHighlightedColor {
