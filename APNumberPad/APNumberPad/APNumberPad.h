@@ -18,6 +18,19 @@
 
 + (instancetype)numberPadWithDelegate:(id<APNumberPadDelegate>)delegate;
 
+
+
+/**
+ *  Array of APNumberButton
+ */
+@property (copy, readwrite, nonatomic) NSArray *numberButtons;
+
+@property BOOL timeInput;
+
+//-(void)timeStringKeypadHandler:(NSString*)timeString;
+-(void)configureKeypadFor:(NSString*)keypadType;
+//-(void)timeStringKeypadHandler:(NSString*)timeString;
+
 /**
  *  Left function button for custom configuration
  */
@@ -37,5 +50,8 @@
 @optional
 
 - (void)numberPad:(APNumberPad *)numberPad functionButtonAction:(UIButton *)functionButton textInput:(UIResponder<UITextInput> *)textInput;
+- (void)numberPad:(APNumberPad *)numberPad numberButtonAction:(UIButton *)numberButton textInput:(UIResponder<UITextInput> *)textInput;
+
+
 
 @end
