@@ -20,10 +20,14 @@
 	} _delegateFlags;
 }
 
-/**
- *  Array of APNumberButton
- */
-@property (copy, readwrite, nonatomic) NSArray *numberButtons;
+///**
+// *  Array of APNumberButton
+// */
+//@property (copy, readwrite, nonatomic) NSArray *numberButtons;
+
+@property NSTimer* keypadRefresh;
+
+//@property NSArray *numberButtons;
 
 /**
  *  Left function button
@@ -49,6 +53,8 @@
  *  Last touch on view. For support tap by tap entering text
  */
 @property (weak, readwrite, nonatomic) UITouch *lastTouch;
+
+@property NSMutableString* timeStringField;
 
 /**
  *  The class to use for styling the number pad
@@ -85,6 +91,7 @@
         NSMutableArray *numberButtons = [NSMutableArray array];
         for (int i = 0; i < 11; i++) {
             APNumberButton *numberButton = [self numberButton:i];
+            [numberButton addTarget:self action:@selector(numberButtonPress:) forControlEvents:UIControlEventTouchUpInside];
             [self addSubview:numberButton];
             [numberButtons addObject:numberButton];
         }
@@ -174,20 +181,20 @@
                                                  name:UITextFieldTextDidBeginEditingNotification
                                                object:nil];
     
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(textDidBeginEditing:)
-                                                 name:UITextViewTextDidBeginEditingNotification
-                                               object:nil];
+//    [[NSNotificationCenter defaultCenter] addObserver:self
+//                                             selector:@selector(textDidBeginEditing:)
+//                                                 name:UITextViewTextDidBeginEditingNotification
+//                                               object:nil];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(textDidEndEditing:)
                                                  name:UITextFieldTextDidEndEditingNotification
                                                object:nil];
     
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(textDidEndEditing:)
-                                                 name:UITextViewTextDidEndEditingNotification
-                                               object:nil];
+//    [[NSNotificationCenter defaultCenter] addObserver:self
+//                                             selector:@selector(textDidEndEditing:)
+//                                                 name:UITextViewTextDidEndEditingNotification
+//                                               object:nil];
 }
 
 - (void)textDidBeginEditing:(NSNotification *)notification {
@@ -228,26 +235,29 @@
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
     [[UIDevice currentDevice] playInputClick];
-    
-    // Perform number button action for previous `self.lastTouch`
-    //
+//
+//    // Perform number button action for previous `self.lastTouch`
+//    //
     if (self.lastTouch) {
+        NSLog(@"self last touch");
         [self performLastTouchAction];
     }
-
-    // `touches` contains only one UITouch (self.multipleTouchEnabled == NO)
-    //
+//
+//    // `touches` contains only one UITouch (self.multipleTouchEnabled == NO)
+//    //
     self.lastTouch = [touches anyObject];
-    
-    // Update highlighted state for number buttons, cancel `touches` for everything but the catched
-    //
+//
+//    // Update highlighted state for number buttons, cancel `touches` for everything but the catched
+//    //
     CGPoint location = [self.lastTouch locationInView:self];
     for (APNumberButton *b in self.numberButtons) {
-        if (CGRectContainsPoint(b.frame, location)) {
-            b.highlighted = YES;
-        } else {
-            b.highlighted = NO;
-            [b np_touchesCancelled:touches withEvent:event];
+        if (b.enabled) {
+            if (CGRectContainsPoint(b.frame, location)) {
+                b.highlighted = YES;
+            } else {
+                b.highlighted = NO;
+                [b np_touchesCancelled:touches withEvent:event];
+            }
         }
     }
 }
@@ -276,7 +286,9 @@
     // Update highlighted state for number buttons
     //
     for (APNumberButton *b in self.numberButtons) {
-        b.highlighted = CGRectContainsPoint(b.frame, location);
+        if (b.enabled) {
+            b.highlighted = CGRectContainsPoint(b.frame, location);
+        }
     }
 }
 
@@ -288,29 +300,133 @@
     [self performLastTouchAction];
     
     self.lastTouch = nil;
+//    NSLog(@"touches ended");
+//    UITextField *textField = (UITextField*)self.textInput;
+//    [self timeStringKeypadHandler:textField.text];
+//    [self keypadCheck];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
     // Reset hightlighted state for all buttons, forget `self.lastTouch`
     //
+    NSLog(@"touchesCancelled");
     self.leftButton.highlighted = NO;
     self.clearButton.highlighted = NO;
     
     for (APNumberButton *b in self.numberButtons) {
-        b.highlighted = NO;
+        if (b.enabled) {
+            b.highlighted = NO;
+        }
     }
     
     self.lastTouch = nil;
 }
 
+-(void)keypadCheck {
+//    double delayInSeconds = 0.1f;
+//    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
+//    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+//        if (_inputTypeKey == 1 || _inputTypeKey == 2 || _inputTypeKey == 5) {
+//            [self timeStringKeypadHandler];
+//        } else {
+//            for (APNumberButton* bbb in self.numberButtons) {
+//                if (bbb.enabled) {
+//                    bbb.backgroundColor = [UIColor colorWithWhite:0.97 alpha:1.0];
+//                    bbb.titleLabel.text = [NSString stringWithFormat:@"%li",(long)bbb.tag];
+//                } else {
+//                    bbb.backgroundColor = [UIColor colorWithWhite:0.8 alpha:1.0];
+//                    bbb.titleLabel.text = @"";
+//                }
+//            }
+//        }
+//    });
+}
+
+
+-(void)timeStringKeypadHandler:(NSString*)timeString {
+    
+    if (timeString.length == 0) {
+        [self NPKeypadButtonHandler:3 disableButtons:YES];
+    } else if (timeString.length == 1) {
+        switch ([timeString intValue]) {
+            case 0:
+            case 1:
+                [self NPKeypadButtonHandler:0 disableButtons:NO];
+                break;
+            case 2:
+                [self NPKeypadButtonHandler:4 disableButtons:YES];
+                break;
+            default:
+                break;
+        }
+    } else if (timeString.length == 2) {
+        [self NPKeypadButtonHandler:6 disableButtons:YES];
+    } else if (timeString.length == 3) {
+        [self NPKeypadButtonHandler:0 disableButtons:NO];
+    } else if (timeString.length == 4) {
+        [self NPKeypadButtonHandler:6 disableButtons:YES];
+    } else if (timeString.length == 5) {
+        [self NPKeypadButtonHandler:0 disableButtons:NO];
+    } else if (timeString.length == 6) {
+        [self NPKeypadButtonHandler:0 disableButtons:YES];
+    }
+    //    if (timePadString.length >= 6) {
+    //        double delayInSeconds = 0.1f; 
+    //        dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
+    //        dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+//                [self checkButtonText];
+    //        });
+    //    }
+}
+
+-(void)NPKeypadButtonHandler:(int)value disableButtons:(BOOL)isDisabled {
+    for (APNumberButton* bbb in self.numberButtons) {
+//    for (NSInteger i = 0; i < 10; i++) {
+//        UIButton* bbb = (UIButton*)[self viewWithTag:i];
+//        if (i == 0) {
+//            bbb = self.numberButtons.firstObject;
+//        }
+        if (isDisabled) {
+            if (bbb.tag >= value) {
+                bbb.backgroundColor = [UIColor colorWithWhite:0.8 alpha:1.0];
+                bbb.titleLabel.text = @"";
+                bbb.enabled = NO;
+            } else {
+                bbb.backgroundColor = [UIColor colorWithWhite:0.97 alpha:1.0];
+                bbb.titleLabel.text = [NSString stringWithFormat:@"%li",(long)bbb.tag];
+                bbb.enabled = YES;
+            }
+        } else {
+            bbb.backgroundColor = [UIColor colorWithWhite:0.97 alpha:1.0];
+            bbb.titleLabel.text = [NSString stringWithFormat:@"%li",(long)bbb.tag];
+            bbb.enabled = YES;
+        }
+    }
+}
+
+-(void)configureKeypadFor:(NSString*)keypadType {
+//    if ([keypadType isEqualToString:@"distance"]) {
+//        for (APNumberButton* bbb in self.numberButtons) {
+//            bbb.enabled = YES;
+//            bbb.backgroundColor = [UIColor colorWithWhite:0.97 alpha:1.0];
+//            bbb.titleLabel.text = [NSString stringWithFormat:@"%li",(long)bbb.tag];
+//        }
+//    } else {
+//        [self timeStringKeypadHandler:@""];
+//    }
+}
+
 - (void)performLastTouchAction {
     // Reset highlighted state for all buttons, perform action for catched button
     //
+    
     CGPoint location = [self.lastTouch locationInView:self];
     for (APNumberButton *b in self.numberButtons) {
-        b.highlighted = NO;
-        if (CGRectContainsPoint(b.frame, location)) {
-            [self numberButtonAction:b];
+        if (b.enabled) {
+            b.highlighted = NO;
+            if (CGRectContainsPoint(b.frame, location)) {
+                [self numberButtonAction:b];
+            }
         }
     }
 }
@@ -334,30 +450,45 @@
 #pragma mark - Actions
 
 - (void)numberButtonAction:(UIButton *)sender {
+    
     if (!self.textInput) {
         return;
     }
-    
+    UITextField *textField = (UITextField*)self.textInput;
     NSString *text = sender.currentTitle;
-    
-    if (_delegateFlags.textInputSupportsShouldChangeTextInRange) {
-        if ([self.textInput shouldChangeTextInRange:self.textInput.selectedTextRange replacementText:text]) {
-            [self.textInput insertText:text];
+    if (_timeInput) {
+        if (text.length > 0) {
+            NSRange selectedRange = [[self class] selectedRange:self.textInput];
+            if ([textField.delegate textField:textField shouldChangeCharactersInRange:selectedRange replacementString:text]) {
+                [self.textInput insertText:text];
+//                [self timeStringKeypadHandler:textField.text];
+            }
         }
-    } else if (_delegateFlags.delegateSupportsTextFieldShouldChangeCharactersInRange) {
-        NSRange selectedRange = [[self class] selectedRange:self.textInput];
-        UITextField *textField = (UITextField *)self.textInput;
-        if ([textField.delegate textField:textField shouldChangeCharactersInRange:selectedRange replacementString:text]) {
-            [self.textInput insertText:text];
+        
+        if ([self.delegate respondsToSelector:@selector(numberPad:numberButtonAction:textInput:)]) {
+            [self.delegate numberPad:self numberButtonAction:sender textInput:self.textInput];
         }
-    } else if (_delegateFlags.delegateSupportsTextViewShouldChangeTextInRange) {
-        NSRange selectedRange = [[self class] selectedRange:self.textInput];
-        UITextView *textView = (UITextView *)self.textInput;
-        if ([textView.delegate textView:textView shouldChangeTextInRange:selectedRange replacementText:text]) {
-            [self.textInput insertText:text];
-        }
+        
     } else {
-        [self.textInput insertText:text];
+        if (_delegateFlags.textInputSupportsShouldChangeTextInRange) {
+            if ([self.textInput shouldChangeTextInRange:self.textInput.selectedTextRange replacementText:text]) {
+                [self.textInput insertText:text];
+            }
+        } else if (_delegateFlags.delegateSupportsTextFieldShouldChangeCharactersInRange) {
+            NSRange selectedRange = [[self class] selectedRange:self.textInput];
+            UITextField *textField = (UITextField *)self.textInput;
+            if ([textField.delegate textField:textField shouldChangeCharactersInRange:selectedRange replacementString:text]) {
+                [self.textInput insertText:text];
+            }
+        } else if (_delegateFlags.delegateSupportsTextViewShouldChangeTextInRange) {
+            NSRange selectedRange = [[self class] selectedRange:self.textInput];
+            UITextView *textView = (UITextView *)self.textInput;
+            if ([textView.delegate textView:textView shouldChangeTextInRange:selectedRange replacementText:text]) {
+                [self.textInput insertText:text];
+            }
+        } else {
+            [self.textInput insertText:text];
+        }
     }
 }
 
@@ -366,37 +497,51 @@
         return;
     }
     
-    if (_delegateFlags.textInputSupportsShouldChangeTextInRange) {
-        UITextRange *textRange = self.textInput.selectedTextRange;
-        if ([textRange.start isEqual:textRange.end]) {
-            UITextPosition *newStart = [self.textInput positionFromPosition:textRange.start inDirection:UITextLayoutDirectionLeft offset:1];
-            textRange = [self.textInput textRangeFromPosition:newStart toPosition:textRange.end];
-        }
-        if ([self.textInput shouldChangeTextInRange:textRange replacementText:@""]) {
-            [self.textInput deleteBackward];
-        }
-    } else if (_delegateFlags.delegateSupportsTextFieldShouldChangeCharactersInRange) {
-        NSRange selectedRange = [[self class] selectedRange:self.textInput];
-        if (selectedRange.length == 0 && selectedRange.location > 0) {
-            selectedRange.location--;
-            selectedRange.length = 1;
-        }
-        UITextField *textField = (UITextField *)self.textInput;
+    NSRange selectedRange = [[self class] selectedRange:self.textInput];
+    if (selectedRange.length == 0 && selectedRange.location > 0) {
+        selectedRange.location--;
+        selectedRange.length = 1;
+    }
+
+    UITextField *textField = (UITextField*)self.textInput;
+    if (_timeInput) {
         if ([textField.delegate textField:textField shouldChangeCharactersInRange:selectedRange replacementString:@""]) {
             [self.textInput deleteBackward];
-        }
-    } else if (_delegateFlags.delegateSupportsTextViewShouldChangeTextInRange) {
-        NSRange selectedRange = [[self class] selectedRange:self.textInput];
-        if (selectedRange.length == 0 && selectedRange.location > 0) {
-            selectedRange.location--;
-            selectedRange.length = 1;
-        }
-        UITextView *textView = (UITextView *)self.textInput;
-        if ([textView.delegate textView:textView shouldChangeTextInRange:selectedRange replacementText:@""]) {
-            [self.textInput deleteBackward];
+//            [self timeStringKeypadHandler:textField.text];
         }
     } else {
-        [self.textInput deleteBackward];
+        if (_delegateFlags.textInputSupportsShouldChangeTextInRange) {
+            UITextRange *textRange = self.textInput.selectedTextRange;
+            if ([textRange.start isEqual:textRange.end]) {
+                UITextPosition *newStart = [self.textInput positionFromPosition:textRange.start inDirection:UITextLayoutDirectionLeft offset:1];
+                textRange = [self.textInput textRangeFromPosition:newStart toPosition:textRange.end];
+            }
+            if ([self.textInput shouldChangeTextInRange:textRange replacementText:@""]) {
+                [self.textInput deleteBackward];
+            }
+        } else if (_delegateFlags.delegateSupportsTextFieldShouldChangeCharactersInRange) {
+            NSRange selectedRange = [[self class] selectedRange:self.textInput];
+            if (selectedRange.length == 0 && selectedRange.location > 0) {
+                selectedRange.location--;
+                selectedRange.length = 1;
+            }
+            UITextField *textField = (UITextField *)self.textInput;
+            if ([textField.delegate textField:textField shouldChangeCharactersInRange:selectedRange replacementString:@""]) {
+                [self.textInput deleteBackward];
+            }
+        } else if (_delegateFlags.delegateSupportsTextViewShouldChangeTextInRange) {
+            NSRange selectedRange = [[self class] selectedRange:self.textInput];
+            if (selectedRange.length == 0 && selectedRange.location > 0) {
+                selectedRange.location--;
+                selectedRange.length = 1;
+            }
+            UITextView *textView = (UITextView *)self.textInput;
+            if ([textView.delegate textView:textView shouldChangeTextInRange:selectedRange replacementText:@""]) {
+                [self.textInput deleteBackward];
+            }
+        } else {
+            [self.textInput deleteBackward];
+        }
     }
 }
 
@@ -406,6 +551,16 @@
     }
     
     if ([self.delegate respondsToSelector:@selector(numberPad:functionButtonAction:textInput:)]) {
+        [self.delegate numberPad:self functionButtonAction:sender textInput:self.textInput];
+    }
+}
+
+- (void)numberButtonPress:(id)sender {
+    if (!self.textInput) {
+        return;
+    }
+    
+    if (_timeInput && [self.delegate respondsToSelector:@selector(numberPad:functionButtonAction:textInput:)]) {
         [self.delegate numberPad:self functionButtonAction:sender textInput:self.textInput];
     }
 }
@@ -422,10 +577,10 @@
 }
 
 - (void)clearButtonActionLongPress {
+
     if (_clearButtonLongPressGesture) {
         if ([self.textInput hasText]) {
             [[UIDevice currentDevice] playInputClick];
-            
             [self clearButtonAction];
             [self performSelector:@selector(clearButtonActionLongPress) withObject:nil afterDelay:0.1f]; // delay like in iOS keyboard
         } else {
@@ -458,6 +613,7 @@
     [b setTitleColor:[self.styleClass numberButtonTextColor] forState:UIControlStateNormal];
     b.titleLabel.font = [self.styleClass numberButtonFont];
     [b setTitle:[NSString stringWithFormat:@"%d", number] forState:UIControlStateNormal];
+    [b setTag:number];
     return b;
 }
 
